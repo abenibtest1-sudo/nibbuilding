@@ -38,6 +38,7 @@ const PUBLIC_ROUTES = [
   "/portal/cancel",
   "/portal/error",
   "/api/portal/payment-callback",
+  "api/portal/yagoutPay-callback",
 ];
 
 export async function middleware(request: NextRequest) {
