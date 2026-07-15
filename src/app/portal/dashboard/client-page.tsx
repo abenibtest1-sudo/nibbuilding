@@ -171,9 +171,11 @@ export function TenantDashboardClientPage({
       addField("me_id", result.meId!);
       addField("merchant_request", result.merchantRequest!);
       addField("hash", result.hash!);
+      console.log("##################hahah");
 
       document.body.appendChild(form);
       form.submit(); // full-page navigation to Yagout's checkout page
+      console.log("##################hahah");
     } finally {
       setPayingBillId(null);
     }
