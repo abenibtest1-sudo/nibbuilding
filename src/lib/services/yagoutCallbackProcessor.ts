@@ -122,7 +122,7 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
   }
   const txn = parseTxnResponse(decryptedTxn);
 
-   
+
 
   // 3. Extract Bill ID from udf_1 (within other_details)
   let billId: string | null = null;
@@ -130,12 +130,12 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
     const decryptedOther = safeDecrypt(otherDetailsEnc);
     if (decryptedOther) {
       // udf_1 is the first index in the pipe-separated other_details section
-      billId = decryptedOther.split("|")[0]; 
+      billId = decryptedOther.split("|")[0];
     }
   }
-   console.log("################ YAGOUT CALLBACK billid #################");
-    console.log(JSON.stringify(billId, null, 2)); 
-    console.log("#######################################################");
+  console.log("################ YAGOUT CALLBACK billid #################");
+  console.log(JSON.stringify(billId, null, 2));
+  console.log("#######################################################");
 
 
   if (!billId) {
@@ -207,7 +207,7 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
   const utilityAmount = parseUtilityAmount(bill.utilityBreakdown);
   let penaltyAmount = Number(bill.penaltyAmount ?? 0);
   const paymentDate = new Date();
-  
+
   // Recalculate Penalty based on current payment date
   const billDueDateUtc = toUtcStartOfDay(bill.dueDate);
   const paymentDateUtc = toUtcStartOfDay(paymentDate);
@@ -261,20 +261,26 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
         toAccountNumber: bill.agreement.space.building.accountNumber,
       },
     }),
+
+    prisma.yagoutPayment.update({
+      where: { orderNo: txn.orderNo },
+      data: {
+        status: txn.status.toUpperCase(), // SUCCESSFUL or FAILED
+        agRef: txn.agRef,
+        pgRef: txn.pgRef,
+        resCode: txn.resCode,
+        resMessage: txn.resMessage,
+        rawResponse: txn // Save the whole object for the audit trail
+      }
+    })
+
   ]);
 
-  await prisma.yagoutPayment.update({
-  where: { orderNo: txn.orderNo },
-  data: {
-    status: txn.status.toUpperCase(), // SUCCESSFUL or FAILED
-    agRef: txn.agRef,
-    pgRef: txn.pgRef,
-    resCode: txn.resCode,
-    resMessage: txn.resMessage,
-    rawResponse: txn // Save the whole object for the audit trail
-  }
-});
 
-  console.log(`Payment confirmed and updated for Bill ID: ${bill.id}`);
+
+
+
+  console.log(`Db save: ${bill.id},${txn.status.toUpperCase()},${txn.agRef},${txn.pgRef}`);
+  console.log(await prisma.yagoutPayment.findMany())
   return { status: 200, body: { message: "Payment confirmed and bill updated." } };
 }
