@@ -38,7 +38,7 @@ const PUBLIC_ROUTES = [
   "/portal/cancel",
   "/portal/error",
   "/api/portal/payment-callback",
-  "api/portal/yagoutPay-callback",
+  "/api/portal/yagoutPay-callback",
 ];
 
 export async function middleware(request: NextRequest) {
@@ -92,8 +92,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  const isPublicRoute =
-    PUBLIC_ROUTES.some((path) => pathname.startsWith(path)) || pathname === "/";
+  const isPublicRoute =  PUBLIC_ROUTES.some((path) => pathname.startsWith(path)) || pathname === "/";
   const isApiAuthRoute = pathname.startsWith("/api/auth");
 
   if (isPublicRoute || isApiAuthRoute) {
