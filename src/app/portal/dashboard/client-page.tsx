@@ -156,7 +156,7 @@ export function TenantDashboardClientPage({
       }
 
       const form = document.createElement("form");
-      form.method = "POST";
+      form.method = "GET";
       form.action = result.postUrl;
       form.style.display = "none";
 
