@@ -39,6 +39,9 @@ export function yagoutDecrypt(cipherB64: string, key: string = getKey()): string
   if (padLen > 0 && padLen <= BLOCK_SIZE) {
     return decrypted.subarray(0, decrypted.length - padLen).toString("utf8");
   }
+     console.log("################ YAGOUT CALLBACK decrypted #################");
+    console.log(JSON.stringify(decrypted, null, 2)); 
+    console.log("#######################################################");
   return decrypted.toString("utf8");
 }
 
@@ -101,6 +104,10 @@ export function verifyYagoutHash(
     const decryptedHash = yagoutDecrypt(encryptedHash);
     const raw = [params.merchantId, params.orderNo, params.amount, params.country, params.currency].join("~");
     const expectedHash = crypto.createHash("sha256").update(raw).digest("hex");
+    console.log("################ YAGOUT CALLBACK expectedHash #################");
+    console.log(JSON.stringify(expectedHash, null, 2)); 
+    console.log(JSON.stringify(decryptedHash === expectedHash, null, 2)); 
+    console.log("#######################################################");
     return decryptedHash === expectedHash;
   } catch (err) {
     console.error("YagoutPay: failed to verify callback hash.", err);
@@ -112,7 +119,9 @@ export function verifyYagoutHash(
 export function safeDecrypt(value: FormDataEntryValue | null | undefined): string | null {
   if (!value || typeof value !== "string" || value.trim() === "") return null;
   try {
+    
     return yagoutDecrypt(value);
+    
   } catch (err) {
     console.error("YagoutPay: failed to decrypt callback field.", err);
     return null;
@@ -127,6 +136,9 @@ export interface YagoutPgDetails {
 
 export function parsePgDetails(decrypted: string): YagoutPgDetails {
   const [pgId, pgName, paymode] = decrypted.split("|");
+   console.log("################ YAGOUT CALLBACK expectedHash #################");
+    console.log(pgId, pgName, paymode); 
+    console.log("#######################################################");
   return { pgId, pgName, paymode };
 }
 

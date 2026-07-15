@@ -103,15 +103,14 @@ export interface YagoutCallbackResult {
  * Expects form fields: me_id, txn_response, pg_details, other_details, hash.
  */
 export async function processYagoutCallback(formData: FormData): Promise<YagoutCallbackResult> {
-  const meId = formData.get("me_id")?.toString();
   const txnResponseEnc = formData.get("txn_response")?.toString();
   const pgDetailsEnc = formData.get("pg_details")?.toString();
   const otherDetailsEnc = formData.get("other_details")?.toString();
   const hashEnc = formData.get("hash")?.toString();
 
   // 1. Basic Validation
-  if (!meId || !txnResponseEnc) {
-    console.error("YagoutPay callback: missing me_id or txn_response.");
+  if (!txnResponseEnc) {
+    console.error("YagoutPay callback:  txn_response.");
     return { status: 400, body: { message: "Missing required callback fields." } };
   }
 
@@ -123,6 +122,8 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
   }
   const txn = parseTxnResponse(decryptedTxn);
 
+   
+
   // 3. Extract Bill ID from udf_1 (within other_details)
   let billId: string | null = null;
   if (otherDetailsEnc) {
@@ -132,6 +133,10 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
       billId = decryptedOther.split("|")[0]; 
     }
   }
+   console.log("################ YAGOUT CALLBACK billid #################");
+    console.log(JSON.stringify(billId, null, 2)); 
+    console.log("#######################################################");
+
 
   if (!billId) {
     console.error("YagoutPay callback: could not extract bill id from udf_1.", { orderNo: txn.orderNo });
@@ -154,10 +159,10 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
   }
 
   // 5. Merchant ID Check
-  if (txn.meId !== meId) {
-    console.error("YagoutPay callback: merchant ID mismatch.", { formMeId: meId, decryptedMeId: txn.meId });
-    return { status: 401, body: { message: "Merchant ID mismatch." } };
-  }
+  // if (txn.meId !== meId) {
+  //   console.error("YagoutPay callback: merchant ID mismatch.", { formMeId: meId, decryptedMeId: txn.meId });
+  //   return { status: 401, body: { message: "Merchant ID mismatch." } };
+  // }
 
   // 6. Fetch Bill from Database
   const bill = await prisma.bill.findUnique({
