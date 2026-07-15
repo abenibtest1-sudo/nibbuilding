@@ -136,61 +136,25 @@ export function parsePgDetails(decrypted: string): YagoutPgDetails {
  * ~ ship_details ~ item_details ~ upi_details ~ other_details
  */
 export function buildMerchantRequestPlaintext(input: {
-  txn: YagoutTxnDetails;
-  cust: YagoutCustDetails;
-  bill?: YagoutBillDetails;
+  txn: any;
+  cust: any;
+  udf1?: string; // Add this
 }): string {
-  const { txn, cust, bill } = input;
+  const { txn, cust, udf1 } = input;
 
-  const txnSection = pipe([
-    txn.agId,
-    txn.meId,
-    txn.orderNo,
-    txn.amount,
-    txn.country,
-    txn.currency,
-    txn.txnType,
-    txn.successUrl,
-    txn.failureUrl,
-    txn.channel,
-  ]);
-
-  // Blank for Aggregator Hosted (Non-Seamless)
-  const pgSection = pipe(["", "", "", ""]); // pg_id, paymode, scheme, wallet_type
-  const cardSection = pipe(["", "", "", "", ""]); // card_no, exp_month, exp_year, cvv, card_name
-
-  const custSection = pipe([
-    cust.custName ?? "",
-    cust.emailId,
-    cust.mobileNo,
-    cust.uniqueId ?? "",
-    cust.isLoggedIn,
-  ]);
-
-  const billSection = pipe([
-    bill?.billAddress ?? "",
-    bill?.billCity ?? "",
-    bill?.billState ?? "",
-    bill?.billCountry ?? "",
-    bill?.billZip ?? "",
-  ]);
-
-  const shipSection = pipe(["", "", "", "", "", "", ""]); // not applicable to rent payments
+  const txnSection = pipe([txn.agId, txn.meId, txn.orderNo, txn.amount, txn.country, txn.currency, txn.txnType, txn.successUrl, txn.failureUrl, txn.channel]);
+  const pgSection = pipe(["", "", "", ""]); 
+  const cardSection = pipe(["", "", "", "", ""]);
+  const custSection = pipe([cust.custName ?? "", cust.emailId, cust.mobileNo, "", cust.isLoggedIn]);
+  const billSection = pipe(["", "", "", "", ""]);
+  const shipSection = pipe(["", "", "", "", "", "", ""]);
   const itemSection = pipe(["", "", ""]);
   const upiSection = pipe([""]);
-  const otherSection = pipe(["", "", "", "", ""]); // udf_1..udf_5
+  
+  // --- UPDATED OTHER SECTION ---
+  const otherSection = pipe([udf1 ?? "", "", "", "", ""]); 
 
-  return [
-    txnSection,
-    pgSection,
-    cardSection,
-    custSection,
-    billSection,
-    shipSection,
-    itemSection,
-    upiSection,
-    otherSection,
-  ].join("~");
+  return [txnSection, pgSection, cardSection, custSection, billSection, shipSection, itemSection, upiSection, otherSection].join("~");
 }
 
 /** Parsed shape of the decrypted txn_response segment posted back by Yagout */

@@ -98,34 +98,47 @@ export interface YagoutCallbackResult {
  * Expects form fields: me_id (plain), txn_response, pg_details, other_details, hash — all
  * except me_id AES-256 encrypted per the integration doc.
  */
+/**
+ * Processes a decoded YagoutPay Aggregator-Hosted (Non-Seamless) callback.
+ * Expects form fields: me_id, txn_response, pg_details, other_details, hash.
+ */
 export async function processYagoutCallback(formData: FormData): Promise<YagoutCallbackResult> {
   const meId = formData.get("me_id")?.toString();
   const txnResponseEnc = formData.get("txn_response")?.toString();
   const pgDetailsEnc = formData.get("pg_details")?.toString();
+  const otherDetailsEnc = formData.get("other_details")?.toString();
   const hashEnc = formData.get("hash")?.toString();
 
+  // 1. Basic Validation
   if (!meId || !txnResponseEnc) {
-    console.error("YagoutPay callback: missing me_id or txn_response.", {
-      hasMeId: !!meId,
-      hasTxnResponse: !!txnResponseEnc,
-    });
+    console.error("YagoutPay callback: missing me_id or txn_response.");
     return { status: 400, body: { message: "Missing required callback fields." } };
   }
 
+  // 2. Decrypt Transaction Response
   const decryptedTxn = safeDecrypt(txnResponseEnc);
-  console.log("################Decrypted Txn#################")
-  console.log(decryptedTxn)
   if (!decryptedTxn) {
     console.error("YagoutPay callback: failed to decrypt txn_response.");
     return { status: 400, body: { message: "Unable to decrypt callback payload." } };
   }
-
   const txn = parseTxnResponse(decryptedTxn);
 
-    console.log("################Txn#################")
-  console.log(txn)
+  // 3. Extract Bill ID from udf_1 (within other_details)
+  let billId: string | null = null;
+  if (otherDetailsEnc) {
+    const decryptedOther = safeDecrypt(otherDetailsEnc);
+    if (decryptedOther) {
+      // udf_1 is the first index in the pipe-separated other_details section
+      billId = decryptedOther.split("|")[0]; 
+    }
+  }
 
-  // --- Integrity check: recompute hash and compare against what Yagout sent ---
+  if (!billId) {
+    console.error("YagoutPay callback: could not extract bill id from udf_1.", { orderNo: txn.orderNo });
+    return { status: 200, body: { message: "Callback acknowledged, no bill reference found." } };
+  }
+
+  // 4. Integrity Check: Verify Hash
   if (hashEnc) {
     const hashValid = verifyYagoutHash(hashEnc, {
       merchantId: txn.meId,
@@ -138,27 +151,15 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
       console.error("YagoutPay callback: hash verification failed.", { orderNo: txn.orderNo });
       return { status: 401, body: { message: "Callback signature verification failed." } };
     }
-  } else {
-    console.warn("YagoutPay callback: no hash present to verify — proceeding cautiously.", {
-      orderNo: txn.orderNo,
-    });
   }
 
+  // 5. Merchant ID Check
   if (txn.meId !== meId) {
     console.error("YagoutPay callback: merchant ID mismatch.", { formMeId: meId, decryptedMeId: txn.meId });
     return { status: 401, body: { message: "Merchant ID mismatch." } };
   }
 
-  // order_no was generated as `BILL-{billId}-{timestamp}` in initiatePaymentAction
-  const orderParts = txn.orderNo.split("-");
-  const billId = orderParts.length >= 2 ? orderParts[1] : null;
-
-  if (!billId) {
-    console.error("YagoutPay callback: could not extract bill id from order_no.", { orderNo: txn.orderNo });
-    // Acknowledge so Yagout doesn't retry indefinitely on a malformed order_no we generated ourselves.
-    return { status: 200, body: { message: "Callback acknowledged, unrecognized order format." } };
-  }
-
+  // 6. Fetch Bill from Database
   const bill = await prisma.bill.findUnique({
     where: { id: billId },
     include: {
@@ -171,46 +172,43 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
     },
   });
 
-  console.log("################ bill #################")
-  console.log(bill)
-
   if (!bill || !bill.agreement?.space) {
     console.error("YagoutPay callback: no matching bill found.", { billId, orderNo: txn.orderNo });
     return { status: 200, body: { message: "Callback acknowledged, no matching bill found." } };
   }
 
+  // 7. Handle Transaction Status
   const isSuccess = txn.status?.toLowerCase() === "successful";
 
   if (!isSuccess) {
     await prisma.bill.update({
       where: { id: bill.id },
       data: {
-        tenantPaymentNotes: `YagoutPay attempt ${txn.status} — ${txn.resMessage} (ref: ${txn.pgRef || "n/a"})`,
+        tenantPaymentNotes: `YagoutPay attempt failed: ${txn.resMessage} (ref: ${txn.pgRef || "n/a"})`,
       },
     });
     return { status: 200, body: { message: "Callback acknowledged, transaction not successful." } };
   }
 
-  // Avoid double-processing if Yagout retries a callback for an already-paid bill.
-  if (bill.status === "Paid" && bill.paymentReference === txn.pgRef) {
+  // 8. Avoid Double Processing (Idempotency)
+  if (bill.status === "Paid" && bill.paymentReference === (txn.pgRef || txn.agRef)) {
     return { status: 200, body: { message: "Callback acknowledged, already processed." } };
   }
 
+  // 9. Process Successful Payment
   const pgDetails = pgDetailsEnc ? safeDecrypt(pgDetailsEnc) : null;
   const pgName = pgDetails ? parsePgDetails(pgDetails).pgName : "YagoutPay";
 
   const utilityAmount = parseUtilityAmount(bill.utilityBreakdown);
   let penaltyAmount = Number(bill.penaltyAmount ?? 0);
   const paymentDate = new Date();
+  
+  // Recalculate Penalty based on current payment date
   const billDueDateUtc = toUtcStartOfDay(bill.dueDate);
   const paymentDateUtc = toUtcStartOfDay(paymentDate);
   const daysOverdue = differenceInUtcDays(paymentDateUtc, billDueDateUtc);
 
-  if (
-    bill.agreement.space.building?.penaltyPolicyTiers &&
-    bill.agreement.space.building.penaltyPolicyTiers.length > 0 &&
-    daysOverdue > 0
-  ) {
+  if (bill.agreement.space.building?.penaltyPolicyTiers?.length > 0 && daysOverdue > 0) {
     const calculatedPenalty = calculateIndividualPenalty(
       Number(bill.rentAmount),
       daysOverdue,
@@ -224,43 +222,42 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
 
   const totalAmount = parseFloat((Number(bill.rentAmount) + utilityAmount + penaltyAmount).toFixed(2));
 
-  await prisma.bill.update({
-    where: { id: bill.id },
-    data: {
-      status: "Paid",
-      paymentDate,
-      paymentReference: txn.pgRef || txn.agRef,
-      paymentMethod: "YagoutPay",
-      adminVerifiedPayment: true,
-      adminVerificationNotes: `Payment confirmed via YagoutPay callback. Gateway: ${pgName}. Ag Ref: ${txn.agRef}. PG Ref: ${txn.pgRef}.`,
-      penaltyAmount,
-      totalAmount,
-    },
-  });
+  // 10. Update Bill and Create Audit Log
+  await prisma.$transaction([
+    prisma.bill.update({
+      where: { id: bill.id },
+      data: {
+        status: "Paid",
+        paymentDate,
+        paymentReference: txn.pgRef || txn.agRef,
+        paymentMethod: "YagoutPay",
+        adminVerifiedPayment: true,
+        adminVerificationNotes: `Paid via YagoutPay. Ref: ${txn.pgRef || txn.agRef}. Gateway: ${pgName}.`,
+        penaltyAmount,
+        totalAmount,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: "payment",
+        actorId: bill.agreement.tenant?.userId ?? null,
+        actorName: bill.agreement.tenant?.name || "System",
+        tenantId: bill.tenantId,
+        tenantName: bill.agreement.tenant?.name || "N/A",
+        buildingId: bill.agreement.space.buildingId,
+        buildingName: bill.agreement.space.buildingName,
+        spaceName: bill.agreement.space.spaceIdName,
+        paymentDate,
+        rentAmount: bill.rentAmount,
+        utilityAmount,
+        penaltyAmount,
+        totalAmount,
+        transactionId: txn.pgRef || txn.agRef,
+        toAccountNumber: bill.agreement.space.building.accountNumber,
+      },
+    }),
+  ]);
 
-  await prisma.auditLog.create({
-    data: {
-      action: "payment",
-      actorId: bill.agreement.tenant?.userId ?? null,
-      actorName: bill.agreement.tenant?.name || "Unknown",
-      tenantId: bill.tenantId,
-      tenantName: bill.agreement.tenant?.name || "N/A",
-      buildingId: bill.agreement.space.buildingId,
-      buildingName: bill.agreement.space.buildingName,
-      spaceName: bill.agreement.space.spaceIdName,
-      paymentDate,
-      rentAmount: bill.rentAmount,
-      utilityAmount,
-      penaltyAmount,
-      totalAmount,
-      transactionId: txn.pgRef || txn.agRef,
-      toAccountNumber: bill.agreement.space.building.accountNumber,
-    },
-  });
-
-  console.log("################ Successfully updated #################")
-  
-
-
+  console.log(`Payment confirmed and updated for Bill ID: ${bill.id}`);
   return { status: 200, body: { message: "Payment confirmed and bill updated." } };
 }
