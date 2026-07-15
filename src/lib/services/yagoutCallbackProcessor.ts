@@ -263,6 +263,18 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
     }),
   ]);
 
+  await prisma.yagoutPayment.update({
+  where: { orderNo: txn.orderNo },
+  data: {
+    status: txn.status.toUpperCase(), // SUCCESSFUL or FAILED
+    agRef: txn.agRef,
+    pgRef: txn.pgRef,
+    resCode: txn.resCode,
+    resMessage: txn.resMessage,
+    rawResponse: txn // Save the whole object for the audit trail
+  }
+});
+
   console.log(`Payment confirmed and updated for Bill ID: ${bill.id}`);
   return { status: 200, body: { message: "Payment confirmed and bill updated." } };
 }

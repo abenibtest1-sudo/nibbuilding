@@ -44,6 +44,16 @@ export async function initiatePaymentAction(billId: string): Promise<InitiatePay
     const orderNo = "ORDER_" + randomBytes(4).toString("hex");
     const amount = Number(bill.totalAmount).toFixed(2);
 
+    await prisma.yagoutPayment.create({
+  data: {
+    orderNo: orderNo,
+    meId: meId,
+    billId: bill.id,
+    amount: amount,
+    status: "PENDING"
+  }
+});
+
     const plaintext = buildMerchantRequestPlaintext({
       txn: {
         agId: process.env.YAGOUTPAY_AGGREGATOR_ID ?? "yagout",
