@@ -5,7 +5,7 @@ import {
   verifyYagoutHash,
   parseTxnResponse,
   parsePgDetails,
-} from "@/lib/services/yagoutpay";
+} from "@/lib/services/yagoutPayService";
 
 function parseUtilityAmount(utilityBreakdown: unknown): number {
   if (typeof utilityBreakdown === "string") {
@@ -113,12 +113,17 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
   }
 
   const decryptedTxn = safeDecrypt(txnResponseEnc);
+  console.log("################Decrypted Txn#################")
+  console.log(decryptedTxn)
   if (!decryptedTxn) {
     console.error("YagoutPay callback: failed to decrypt txn_response.");
     return { status: 400, body: { message: "Unable to decrypt callback payload." } };
   }
 
   const txn = parseTxnResponse(decryptedTxn);
+
+    console.log("################Txn#################")
+  console.log(txn)
 
   // --- Integrity check: recompute hash and compare against what Yagout sent ---
   if (hashEnc) {
@@ -165,6 +170,9 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
       },
     },
   });
+
+  console.log("################ bill #################")
+  console.log(bill)
 
   if (!bill || !bill.agreement?.space) {
     console.error("YagoutPay callback: no matching bill found.", { billId, orderNo: txn.orderNo });
@@ -249,6 +257,10 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
       toAccountNumber: bill.agreement.space.building.accountNumber,
     },
   });
+
+  console.log("################ Successfully updated #################")
+  
+
 
   return { status: 200, body: { message: "Payment confirmed and bill updated." } };
 }
