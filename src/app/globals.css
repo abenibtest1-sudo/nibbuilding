@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: 40 33% 97%; /* #FAF9F6 - Off-white */
+    --foreground: 16 30% 28%; /* #5C4033 - Dark Brown */
+    --card: 0 0% 100%;
+    --card-foreground: 16 30% 28%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 16 30% 28%;
+    --primary: 43 98% 54%; /* #fdb913 - New Gold */
+    --primary-foreground: 16 30% 20%; /* Dark brown for contrast */
+    --secondary: 54 76% 77%; /* #F0E68C - Light gold/khaki */
+    --secondary-foreground: 16 30% 28%;
+    --muted: 45 33% 92%; /* #F2F0E9 - Lighter beige */
+    --muted-foreground: 21 22% 55%; /* #A69B94 - Muted Brown/Gray */
+    --accent: 46 65% 52%; /* #D4AF37 - Gold */
+    --accent-foreground: 16 30% 28%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 21 22% 85%; /* #D3C5BC - Light Gray/Brown */
+    --input: 21 22% 90%; /* #E0D9D4 */
+    --ring: 43 98% 54%; /* Primary color */
+    --chart-1: 43 98% 54%;
+    --chart-2: 46 65% 52%;
+    --chart-3: 16 30% 28%;
+    --chart-4: 54 76% 77%;
+    --chart-5: 21 22% 55%;
+    --radius: 0.5rem;
+
+    /* Sidebar Theme - Dark Brown/Gold */
+    --sidebar-background: 16 30% 18%; /* #3A2A24 - Darker Brown */
+    --sidebar-foreground: 45 50% 85%; /* #F0EAD6 - Light Cream for text */
+    --sidebar-primary: 46 65% 52%; /* #D4AF37 - Gold */
+    --sidebar-primary-foreground: 16 30% 10%; /* #221510 - Very Dark Brown for text on primary */
+    --sidebar-accent: 43 89% 38%; /* #B8860B - Darker gold for hover */
+    --sidebar-accent-foreground: 40 33% 97%; /* Off-white */
+    --sidebar-border: 16 30% 25%; /* #4C372E - Slightly lighter brown border */
+    --sidebar-ring: 46 65% 52%;
+  }
+  .dark {
+    --background: 16 20% 10%; /* #211B18 - Very Dark Brown */
+    --foreground: 40 33% 90%; /* #EBE9E4 - Off-white */
+    --card: 16 20% 12%; /* #26201D */
+    --card-foreground: 40 33% 90%;
+    --popover: 16 20% 8%; /* #1A1513 */
+    --popover-foreground: 40 33% 90%;
+    --primary: 43 98% 54%; /* #fdb913 - New Gold */
+    --primary-foreground: 16 30% 10%; /* #221510 */
+    --secondary: 16 20% 20%; /* #3D312C */
+    --secondary-foreground: 40 33% 90%;
+    --muted: 16 20% 20%;
+    --muted-foreground: 45 25% 65%; /* #BDB9A8 */
+    --accent: 43 89% 38%; /* #B8860B */
+    --accent-foreground: 40 33% 97%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 16 20% 25%; /* #4A3E39 */
+    --input: 16 20% 25%;
+    --ring: 43 98% 54%;
+
+    /* Sidebar Dark Theme */
+    --sidebar-background: 16 30% 12%; /* #271C17 - Darkest Brown */
+    --sidebar-foreground: 40 33% 90%; /* #EBE9E4 */
+    --sidebar-primary: 46 65% 52%; /* #D4AF37 - Gold */
+    --sidebar-primary-foreground: 16 30% 10%;
+    --sidebar-accent: 43 89% 38%; /* #B8860B */
+    --sidebar-accent-foreground: 40 33% 97%;
+    --sidebar-border: 16 30% 18%; /* #3A2A24 */
+    --sidebar-ring: 46 65% 52%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.utility-space-scroll [data-radix-scroll-area-viewport] {
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
