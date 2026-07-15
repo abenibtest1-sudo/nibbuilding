@@ -4,7 +4,8 @@ import { processYagoutCallback } from "@/lib/services/yagoutCallbackProcessor";
 export async function POST(request: NextRequest) {
   let formData: FormData;
 
-  console.log(request.body)
+
+  console.log(request)
   try {
     formData = await request.formData();
   } catch (e) {
