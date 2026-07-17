@@ -124,7 +124,7 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
   }
 
     const fraudDetail = safeDecrypt(fraudDetailsEnc);
-  console.log("################### frauddetail ${fraudDetail} ######################");
+  console.log(`################### frauddetail ${fraudDetail} ######################`);
 
   const txn = parseTxnResponse(decryptedTxn);
 
