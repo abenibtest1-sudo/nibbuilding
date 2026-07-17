@@ -105,9 +105,11 @@ export interface YagoutCallbackResult {
 export async function processYagoutCallback(formData: FormData): Promise<YagoutCallbackResult> {
   const txnResponseEnc = formData.get("txn_response")?.toString();
   const pgDetailsEnc = formData.get("pg_details")?.toString();
+  const fraudDetailsEnc = formData.get("fraud_details")?.toString();
   const otherDetailsEnc = formData.get("other_details")?.toString();
   const hashEnc = formData.get("hash")?.toString();
 
+  
   // 1. Basic Validation
   if (!txnResponseEnc) {
     console.error("YagoutPay callback:  txn_response.");
@@ -120,6 +122,10 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
     console.error("YagoutPay callback: failed to decrypt txn_response.");
     return { status: 400, body: { message: "Unable to decrypt callback payload." } };
   }
+
+    const fraudDetail = safeDecrypt(fraudDetailsEnc);
+  console.log("################### frauddetail ${fraudDetail} ######################");
+
   const txn = parseTxnResponse(decryptedTxn);
 
 
@@ -133,9 +139,11 @@ export async function processYagoutCallback(formData: FormData): Promise<YagoutC
       billId = decryptedOther.split("|")[0];
     }
   }
+
   console.log("################ YAGOUT CALLBACK billid #################");
   console.log(JSON.stringify(billId, null, 2));
   console.log("#######################################################");
+
 
 
   if (!billId) {
